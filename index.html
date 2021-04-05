@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+            integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+            integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+            crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <title>Logging</title>
+</head>
+<div class="container">
+    <br>
+    <div class="jumbotron">
+        <h1 class="display-4">Save log</h1>
+        <br>
+        <textarea id="log" class="form-control" placeholder="Log message"></textarea>
+        <br>
+        <button id="save" class="btn btn-success">Save</button>
+    </div>
+    <div id="logs">
+
+    </div>
+</div>
+<script>
+    const socket = io();
+    $(() => {
+        $("#save").click(() => {
+            var log = {message: $('#log').val()}
+            postLog(log)
+        })
+        getLogs()
+    })
+
+    socket.on('log', addLog)
+
+    function addLog(log) {
+        let date = new Date(log.created_date);
+        $("#logs").append(`<p> ${log.message} <span class="text-secondary">${date.toDateString()}</span> </p>`)
+    }
+
+
+    function getLogs() {
+        makeRequest({
+            method: 'GET',
+            url: window.location.href + 'logging'
+        })
+            .then((data) => {
+                data = JSON.parse(data);
+                data.forEach(addLog);
+            }).catch((err) => {
+            console.log("could not make GET call", err.statusText)
+        });
+    }
+
+    function postLog(log) {
+        makeRequest({
+            method: 'POST',
+            url: window.location.href + 'logging',
+            obj: log,
+            headers: {'Content-Type': 'application/json'}
+        }).catch((err) => {
+            console.log("could not make POST call", err.statusText)
+        });
+    }
+
+    // opts = {
+    //     method: String,
+    //        url: String,
+    //        obj: Object,
+    //     headers: Object
+    // }
+    function makeRequest(opts) {
+        return new Promise(function (resolve, reject) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(opts.method, opts.url);
+            xhr.onload = function () {
+                if (this.status >= 200 && this.status < 300) {
+                    resolve(xhr.response);
+                } else {
+                    reject({
+                        status: this.status,
+                        statusText: xhr.statusText
+                    });
+                }
+            };
+            xhr.onerror = function () {
+                reject({
+                    status: this.status,
+                    statusText: xhr.statusText
+                });
+            };
+            if (opts.headers) {
+                Object.keys(opts.headers).forEach(function (key) {
+                    xhr.setRequestHeader(key, opts.headers[key]);
+                });
+            }
+            xhr.send(JSON.stringify(opts.obj));
+        });
+    }
+</script>
+
+</html>
